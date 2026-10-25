@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEE Subject Tracker</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0c120f;
+            color: #e2e8f0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1310;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e2e24;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2d4536;
+        }
+        /* Standard 8-column grid for pixel-perfect alignment between headers and chapter rows */
+        /* 6 checkboxes of 24px + Mains (54px) + Adv (44px) + 7 gaps of 6px = 284px */
+        .tracker-grid-cols {
+            display: grid;
+            grid-template-columns: 24px 24px 24px 24px 24px 24px 54px 44px;
+            gap: 6px;
+            align-items: center;
+            justify-items: center;
+            width: 284px;
+            flex-shrink: 0;
+        }
+        /* Custom pulse animation for celebration */
+        @keyframes subtle-glow {
+            0%, 100% { border-color: rgba(16, 185, 129, 0.4); }
+            50% { border-color: rgba(16, 185, 129, 0.8); }
+        }
+        .chapter-complete {
+            border-color: rgba(16, 185, 129, 0.45) !important;
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(20, 33, 25, 0.95) 100%) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-3 md:p-5 select-none text-slate-100 antialiased">
+
+    <!-- Top Navigation / Header -->
+    <header class="bg-[#131d17] border border-[#203326] px-4 md:px-6 py-4 rounded-2xl mb-4 shadow-xl">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo & Overall Progress Stats -->
+            <div class="flex flex-wrap items-center gap-4 md:gap-6 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-800 flex items-center justify-center text-white shadow-lg shadow-emerald-950/50">
+                        <i class="fa-solid fa-graduation-cap text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                            JEE Tracker
+                            <span id="overall-percentage" class="text-emerald-300 text-sm md:text-base font-bold bg-[#1b2f22] border border-emerald-800/40 px-2.5 py-0.5 rounded-lg shadow-inner">0%</span>
+                        </h1>
+                        <p id="overall-counter" class="text-[11px] md:text-xs text-gray-400 font-medium">0 / 624 tasks completed</p>
+                    </div>
+                </div>
+
+                <!-- Overall Progress Bar Container -->
+                <div class="flex-1 max-w-xs md:max-w-sm hidden sm:flex flex-col gap-1 cursor-pointer" onclick="openStatsModal()" title="Click to view detailed statistics">
+                    <div class="flex justify-between text-[11px] text-gray-400">
+                        <span>Syllabus Completion</span>
+                        <span id="overall-chapters-counter" class="text-emerald-400 font-semibold">0 / 78 ch</span>
+                    </div>
+                    <div class="w-full bg-[#18231c] h-2.5 rounded-full overflow-hidden border border-[#273d2e] p-0.5">
+                        <div id="overall-progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Action Controls & Badge -->
+            <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
+                <span id="status-badge" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#1a271f] text-gray-400 border border-gray-700/50 shadow-inner flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-gray-500"></span> Not started
+                </span>
+
+                <!-- Detailed Stats Modal Trigger -->
+                <button onclick="openStatsModal()" class="px-3 py-1.5 bg-[#17241c] hover:bg-[#1f3326] text-emerald-300 border border-[#284232] rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-chart-pie"></i> <span class="hidden sm:inline">Stats</span>
+                </button>
+
+                <!-- Export Data -->
+                <button onclick="exportData()" class="px-3 py-1.5 bg-[#17241c] hover:bg-[#1f3326] text-emerald-300 border border-[#284232] rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shadow" title="Export tracker backup (JSON)">
+                    <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Export</span>
+                </button>
+
+                <!-- Import Data -->
+                <label class="px-3 py-1.5 bg-[#17241c] hover:bg-[#1f3326] text-emerald-300 border border-[#284232] rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shadow" title="Import tracker backup (JSON)">
+                    <i class="fa-solid fa-upload"></i> <span class="hidden sm:inline">Import</span>
+                    <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="importData(event)">
+                </label>
+
+                <!-- Reset Button -->
+                <button onclick="confirmReset()" class="px-3 py-1.5 bg-[#251717] hover:bg-[#3d1e1e] text-red-400 border border-red-900/40 rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-rotate-right"></i> <span>Reset</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Toolbar: Search Bar + Subject Tabs + Filter Status -->
+        <div class="mt-4 pt-3.5 border-t border-[#203326] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            
+            <!-- Subject Switcher Tabs -->
+            <div class="flex items-center gap-1 bg-[#0f1712] p-1 rounded-xl border border-[#203326] overflow-x-auto">
+                <button onclick="switchTab('all')" id="tab-btn-all" class="px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer bg-emerald-600 text-white shadow">
+                    All Subjects
+                </button>
+                <button onclick="switchTab('physics')" id="tab-btn-physics" class="px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-bolt text-emerald-400 mr-1"></i> Physics
+                </button>
+                <button onclick="switchTab('chemistry')" id="tab-btn-chemistry" class="px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-flask text-emerald-400 mr-1"></i> Chemistry
+                </button>
+                <button onclick="switchTab('maths')" id="tab-btn-maths" class="px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-square-root-variable text-emerald-400 mr-1"></i> Maths
+                </button>
+            </div>
+
+            <!-- Search & Status Filter -->
+            <div class="flex items-center gap-2 flex-1 md:max-w-md justify-end">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-gray-400"></i>
+                    <input 
+                        type="text" 
+                        id="chapter-search" 
+                        placeholder="Search chapter..." 
+                        oninput="handleSearch(this.value)"
+                        class="w-full bg-[#0f1712] border border-[#203326] focus:border-emerald-500 rounded-xl pl-8 pr-7 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none transition shadow-inner"
+                    >
+                    <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute right-2.5 top-2 text-xs text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Status Filter Dropdown -->
+                <select id="status-filter" onchange="handleFilterChange(this.value)" class="bg-[#0f1712] border border-[#203326] focus:border-emerald-500 text-xs text-gray-300 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer">
+                    <option value="all">All Chapters</option>
+                    <option value="completed">Completed Only</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="not-started">Not Started</option>
+                </select>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main Grid Container: Responsive 3 Columns or Tab-Filtered -->
+    <main id="subjects-container" class="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-5 flex-1">
+        
+        <!-- Physics Column -->
+        <section id="column-physics" class="bg-[#121a15] border border-[#1f3024] rounded-2xl p-3.5 md:p-4 flex flex-col shadow-xl">
+            <!-- Subject Column Header -->
+            <div class="flex justify-between items-center mb-2 pb-2.5 border-b border-[#1f3024] gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-950/80 border border-emerald-800/50 flex items-center justify-center text-emerald-400 shrink-0">
+                        <i class="fa-solid fa-bolt text-xs"></i>
+                    </div>
+                    <div class="truncate">
+                        <h2 class="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                            Physics
+                            <span id="physics-pct" class="text-xs font-semibold text-emerald-400 bg-[#172a1e] px-2 py-0.5 rounded-md border border-emerald-900/40">0%</span>
+                        </h2>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="physics-count" class="text-[11px] text-gray-400 block font-medium">0 / 208 tasks</span>
+                    <span id="physics-ch-count" class="text-[10px] text-emerald-400/80 block">0 / 26 ch</span>
+                </div>
+            </div>
+
+            <!-- Column Legend / Headers aligned with checkboxes & buttons -->
+            <div class="flex justify-between items-center px-3 py-1.5 mb-1.5 bg-[#0e1611] rounded-lg border border-[#1a2b20] text-gray-400">
+                <span class="text-[11px] font-semibold text-gray-300">Chapter</span>
+                <div class="tracker-grid-cols text-[10px] font-semibold tracking-tight text-center">
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Lecture watched & notes done">Lec</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Module (9-22) exercises solved">Mod</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="2023-2026 PYQ Revision done">23-26</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="First Complete Revision">R1</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Second Complete Revision">R2</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Third Complete Revision">R3</span>
+                    <span class="w-[54px] cursor-help hover:text-emerald-300" title="JEE Mains PYQs solved">Mains</span>
+                    <span class="w-[44px] cursor-help hover:text-emerald-300" title="JEE Advanced PYQs solved">Adv</span>
+                </div>
+            </div>
+
+            <!-- Chapter Scroll List -->
+            <div id="physics-list" class="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[68vh] min-h-[350px]">
+                <!-- Populated via JavaScript -->
+            </div>
+        </section>
+
+        <!-- Chemistry Column -->
+        <section id="column-chemistry" class="bg-[#121a15] border border-[#1f3024] rounded-2xl p-3.5 md:p-4 flex flex-col shadow-xl">
+            <div class="flex justify-between items-center mb-2 pb-2.5 border-b border-[#1f3024] gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-950/80 border border-emerald-800/50 flex items-center justify-center text-emerald-400 shrink-0">
+                        <i class="fa-solid fa-flask text-xs"></i>
+                    </div>
+                    <div class="truncate">
+                        <h2 class="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                            Chemistry
+                            <span id="chemistry-pct" class="text-xs font-semibold text-emerald-400 bg-[#172a1e] px-2 py-0.5 rounded-md border border-emerald-900/40">0%</span>
+                        </h2>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="chemistry-count" class="text-[11px] text-gray-400 block font-medium">0 / 192 tasks</span>
+                    <span id="chemistry-ch-count" class="text-[10px] text-emerald-400/80 block">0 / 24 ch</span>
+                </div>
+            </div>
+
+            <!-- Column Legend / Headers aligned with checkboxes & buttons -->
+            <div class="flex justify-between items-center px-3 py-1.5 mb-1.5 bg-[#0e1611] rounded-lg border border-[#1a2b20] text-gray-400">
+                <span class="text-[11px] font-semibold text-gray-300">Chapter</span>
+                <div class="tracker-grid-cols text-[10px] font-semibold tracking-tight text-center">
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Lecture watched & notes done">Lec</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Module (9-22) exercises solved">Mod</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="2023-2026 PYQ Revision done">23-26</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="First Complete Revision">R1</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Second Complete Revision">R2</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Third Complete Revision">R3</span>
+                    <span class="w-[54px] cursor-help hover:text-emerald-300" title="JEE Mains PYQs solved">Mains</span>
+                    <span class="w-[44px] cursor-help hover:text-emerald-300" title="JEE Advanced PYQs solved">Adv</span>
+                </div>
+            </div>
+
+            <!-- Chapter Scroll List -->
+            <div id="chemistry-list" class="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[68vh] min-h-[350px]">
+                <!-- Populated via JavaScript -->
+            </div>
+        </section>
+
+        <!-- Maths Column -->
+        <section id="column-maths" class="bg-[#121a15] border border-[#1f3024] rounded-2xl p-3.5 md:p-4 flex flex-col shadow-xl">
+            <div class="flex justify-between items-center mb-2 pb-2.5 border-b border-[#1f3024] gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-950/80 border border-emerald-800/50 flex items-center justify-center text-emerald-400 shrink-0">
+                        <i class="fa-solid fa-square-root-variable text-xs"></i>
+                    </div>
+                    <div class="truncate">
+                        <h2 class="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                            Maths
+                            <span id="maths-pct" class="text-xs font-semibold text-emerald-400 bg-[#172a1e] px-2 py-0.5 rounded-md border border-emerald-900/40">0%</span>
+                        </h2>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="maths-count" class="text-[11px] text-gray-400 block font-medium">0 / 224 tasks</span>
+                    <span id="maths-ch-count" class="text-[10px] text-emerald-400/80 block">0 / 28 ch</span>
+                </div>
+            </div>
+
+            <!-- Column Legend / Headers aligned with checkboxes & buttons -->
+            <div class="flex justify-between items-center px-3 py-1.5 mb-1.5 bg-[#0e1611] rounded-lg border border-[#1a2b20] text-gray-400">
+                <span class="text-[11px] font-semibold text-gray-300">Chapter</span>
+                <div class="tracker-grid-cols text-[10px] font-semibold tracking-tight text-center">
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Lecture watched & notes done">Lec</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Module (9-22) exercises solved">Mod</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="2023-2026 PYQ Revision done">23-26</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="First Complete Revision">R1</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Second Complete Revision">R2</span>
+                    <span class="w-6 cursor-help hover:text-emerald-300" title="Third Complete Revision">R3</span>
+                    <span class="w-[54px] cursor-help hover:text-emerald-300" title="JEE Mains PYQs solved">Mains</span>
+                    <span class="w-[44px] cursor-help hover:text-emerald-300" title="JEE Advanced PYQs solved">Adv</span>
+                </div>
+            </div>
+
+            <!-- Chapter Scroll List -->
+            <div id="maths-list" class="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[68vh] min-h-[350px]">
+                <!-- Populated via JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Detailed Statistics Modal -->
+    <div id="stats-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4 transition-all" onclick="handleBackdropClick(event, 'stats-modal')">
+        <div class="bg-[#141d18] border border-[#273d2f] p-5 md:p-6 rounded-2xl max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-[#203326]">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-800/60 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-chart-pie text-sm"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white">Preparation Summary & Breakdown</h3>
+                </div>
+                <button onclick="closeModal('stats-modal')" class="text-gray-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Overall Summary Cards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-[#0e1611] p-3 rounded-xl border border-[#1f3024]">
+                    <span class="text-xs text-gray-400 block">Overall Completion</span>
+                    <span id="modal-overall-pct" class="text-xl font-bold text-emerald-400">0%</span>
+                    <span id="modal-overall-tasks" class="text-[11px] text-gray-500 block">0 / 624 Tasks</span>
+                </div>
+                <div class="bg-[#0e1611] p-3 rounded-xl border border-[#1f3024]">
+                    <span class="text-xs text-gray-400 block">Chapters Completed</span>
+                    <span id="modal-overall-chapters" class="text-xl font-bold text-teal-400">0 / 78</span>
+                    <span id="modal-chapters-pct" class="text-[11px] text-gray-500 block">0% of syllabus</span>
+                </div>
+            </div>
+
+            <!-- Stage Breakdown -->
+            <div class="space-y-2">
+                <h4 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">Milestone Breakdown (Across 78 Chapters)</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Lectures</div>
+                        <div id="stat-lec" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Modules</div>
+                        <div id="stat-mod" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">23-26 PYQs</div>
+                        <div id="stat-rev" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Mains PYQ</div>
+                        <div id="stat-mains" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Adv PYQ</div>
+                        <div id="stat-adv" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Revision 1</div>
+                        <div id="stat-r1" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Revision 2</div>
+                        <div id="stat-r2" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                    <div class="bg-[#101913] border border-[#1f3024] p-2 rounded-lg">
+                        <div class="text-gray-400 text-[10px]">Revision 3</div>
+                        <div id="stat-r3" class="font-bold text-emerald-300 text-sm">0/78</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject Breakdown -->
+            <div class="space-y-2 pt-2 border-t border-[#203326]">
+                <h4 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">Subject Breakdown</h4>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-bolt text-emerald-400 mr-1.5"></i> Physics</span>
+                            <span id="modal-physics-text" class="text-emerald-400 font-medium">0% (0 / 208 tasks)</span>
+                        </div>
+                        <div class="w-full bg-[#18231c] h-2 rounded-full overflow-hidden border border-[#273d2e]">
+                            <div id="modal-physics-bar" class="bg-emerald-500 h-full rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-flask text-emerald-400 mr-1.5"></i> Chemistry</span>
+                            <span id="modal-chemistry-text" class="text-emerald-400 font-medium">0% (0 / 192 tasks)</span>
+                        </div>
+                        <div class="w-full bg-[#18231c] h-2 rounded-full overflow-hidden border border-[#273d2e]">
+                            <div id="modal-chemistry-bar" class="bg-emerald-500 h-full rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-300 font-medium"><i class="fa-solid fa-square-root-variable text-emerald-400 mr-1.5"></i> Maths</span>
+                            <span id="modal-maths-text" class="text-emerald-400 font-medium">0% (0 / 224 tasks)</span>
+                        </div>
+                        <div class="w-full bg-[#18231c] h-2 rounded-full overflow-hidden border border-[#273d2e]">
+                            <div id="modal-maths-bar" class="bg-emerald-500 h-full rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeModal('stats-modal')" class="px-4 py-2 bg-[#1a2920] hover:bg-[#23382c] text-emerald-300 rounded-xl text-xs font-semibold transition cursor-pointer">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Reset Confirmation -->
+    <div id="reset-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4" onclick="handleBackdropClick(event, 'reset-modal')">
+        <div class="bg-[#141d18] border border-[#2a3f32] p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-4" onclick="event.stopPropagation()">
+            <div class="w-12 h-12 bg-red-950/60 text-red-400 rounded-2xl flex items-center justify-center mx-auto text-xl border border-red-900/50 shadow-inner">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">Reset All Progress?</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">
+                This will reset all checked lectures, modules, revisions, and PYQ statuses back to zero.
+                <br><span class="text-red-400/90 font-medium">This action cannot be undone.</span>
+            </p>
+            <div class="flex gap-2.5 justify-center pt-2">
+                <button onclick="closeModal('reset-modal')" class="px-4 py-2 bg-[#1c2920] hover:bg-[#25392d] text-gray-300 rounded-xl text-xs font-medium transition cursor-pointer">
+                    Cancel
+                </button>
+                <button onclick="executeReset()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-lg shadow-red-950/50">
+                    Yes, Reset Everything
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="toast-inner" class="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#142319] border border-emerald-500/50 text-white shadow-2xl text-xs font-medium">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toast-msg">Notification message</span>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Data structure for JEE Chapters
+        const syllabusData = {
+            physics: [
+                "Kinematics", "NLM & Friction", "WPE & Circular Motion", "Centre of Mass", 
+                "Rotational Motion", "Atomic Physics", "Dual Nature", "Nuclear Physics", 
+                "KTG", "Thermal Properties of Matter", "Thermodynamics", "Fluids", 
+                "Properties of Matter", "SHM", "Electrostatics", "Gravitation", 
+                "Capacitance", "Current Electricity", "Magnetic Effect of Current", 
+                "Magnetic Effects of Matter", "Alternating Current", "EMI", 
+                "Wave Optics", "Geometrical Optics", "Strings & Sound", "Semiconductor"
+            ],
+            chemistry: [
+                "Mole Concept", "Atomic Structure", "Liquid Solution", "Electrochemistry", 
+                "Chemical Kinetics", "Chemical Equilibrium", "Ionic Equilibrium", 
+                "Redox & Equivalent Concept", "Thermodynamics", "Periodic Table", 
+                "Chemical Bonding", "GOC", "Isomerism", "Hydrocarbon", 
+                "Alkyl Halide", "Alcohol, Phenol, Ethers", "Aldehyde & Ketone", 
+                "Carboxylic Acid & its Derivatives", "Amines", "Biomolecules", 
+                "Coordination", "d & f-Block", "p-Block", "Salt Analysis"
+            ],
+            maths: [
+                "Quadratic Equations", "Sequence & Series", "Trigonometric Functions", 
+                "Trigonometric Equations", "Permutation & Combination", "Binomial Theorem", 
+                "Straight Lines", "Circle", "Parabola", "Ellipse", "Hyperbola", 
+                "Matrices", "Determinants", "Basic Maths & Sets", "Function", 
+                "ITF", "Limits", "Continuity & Differentiability", "Application of Derivatives", 
+                "Indefinite Integration", "Definite Integration", "Area Under Curve", 
+                "Differential Equations", "Vector", "3D", "Complex Numbers", 
+                "Probability", "Statistics"
+            ]
+        };
+
+        // Tooltips for standard columns
+        const columnTitles = [
+            "Lecture watched & notes done",
+            "Module (9-22) exercises solved",
+            "2023-2026 PYQ Revision completed",
+            "Revision 1 completed",
+            "Revision 2 completed",
+            "Revision 3 completed"
+        ];
+
+        // Load saved state safely from localStorage
+        let userState = {};
+        try {
+            const saved = localStorage.getItem('jee_tracker_state');
+            if (saved) userState = JSON.parse(saved);
+        } catch (e) {
+            console.error("Failed to load user state from localStorage:", e);
+            userState = {};
+        }
+
+        // Search & Filter State
+        let currentSearchQuery = "";
+        let currentStatusFilter = "all";
+        let currentActiveTab = "all";
+
+        // Key generator maintaining strict backwards-compatibility
+        function getKey(subject, chapterIndex, type, btnType = null) {
+            if (btnType) {
+                return `${subject}_${chapterIndex}_btn_${btnType}`;
+            }
+            return `${subject}_${chapterIndex}_chk_${type}`;
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            try {
+                localStorage.setItem('jee_tracker_state', JSON.stringify(userState));
+            } catch (e) {
+                console.error("Failed to save user state to localStorage:", e);
+            }
+        }
+
+        // Checks if all 8 tasks of a chapter are complete
+        function isChapterComplete(subject, index) {
+            for (let c = 0; c < 6; c++) {
+                if (!userState[getKey(subject, index, c)]) return false;
+            }
+            if (!userState[getKey(subject, index, null, 'mains')]) return false;
+            if (!userState[getKey(subject, index, null, 'adv')]) return false;
+            return true;
+        }
+
+        // Checks if at least 1 task of a chapter is done
+        function isChapterStarted(subject, index) {
+            for (let c = 0; c < 6; c++) {
+                if (userState[getKey(subject, index, c)]) return true;
+            }
+            if (userState[getKey(subject, index, null, 'mains')]) return true;
+            if (userState[getKey(subject, index, null, 'adv')]) return true;
+            return false;
+        }
+
+        // In-place Toggle for Checkbox (Zero Scroll Jump, Zero Re-render)
+        function toggleCheckbox(subject, chapterIndex, c) {
+            const key = getKey(subject, chapterIndex, c);
+            userState[key] = !userState[key];
+            saveState();
+
+            // Update DOM element directly
+            const isChecked = !!userState[key];
+            const label = document.getElementById(`chk-lbl-${subject}-${chapterIndex}-${c}`);
+            const input = document.getElementById(`chk-inp-${subject}-${chapterIndex}-${c}`);
+            const icon = document.getElementById(`chk-ico-${subject}-${chapterIndex}-${c}`);
+
+            if (input) input.checked = isChecked;
+            if (label) {
+                if (isChecked) {
+                    label.classList.add('bg-emerald-600', 'border-emerald-500');
+                    label.classList.remove('bg-[#101713]', 'border-[#273d2f]');
+                } else {
+                    label.classList.remove('bg-emerald-600', 'border-emerald-500');
+                    label.classList.add('bg-[#101713]', 'border-[#273d2f]');
+                }
+            }
+            if (icon) {
+                if (isChecked) {
+                    icon.classList.remove('hidden');
+                    icon.classList.add('block');
+                } else {
+                    icon.classList.add('hidden');
+                    icon.classList.remove('block');
+                }
+            }
+
+            // Update chapter completion badge and highlight
+            updateChapterRowState(subject, chapterIndex);
+
+            // Update all counters and badges
+            updateProgressStats();
+        }
+
+        // In-place Toggle for PYQ Buttons (Zero Scroll Jump)
+        function togglePyq(subject, chapterIndex, btnType) {
+            const key = getKey(subject, chapterIndex, null, btnType);
+            userState[key] = !userState[key];
+            saveState();
+
+            const isChecked = !!userState[key];
+            const btn = document.getElementById(`btn-${subject}-${chapterIndex}-${btnType}`);
+            const widthClass = btnType === 'mains' ? 'w-[54px]' : 'w-[44px]';
+
+            if (btn) {
+                if (isChecked) {
+                    btn.className = `px-1 h-6 text-[10px] font-bold rounded transition border text-center ${widthClass} truncate shadow-sm shrink-0 bg-emerald-600 border-emerald-500 text-white`;
+                } else {
+                    btn.className = `px-1 h-6 text-[10px] font-medium rounded transition border text-center ${widthClass} truncate shadow-sm shrink-0 bg-[#16221a] hover:bg-[#1e3025] border-[#273d2e] text-emerald-400`;
+                }
+            }
+
+            updateChapterRowState(subject, chapterIndex);
+            updateProgressStats();
+        }
+
+        // Toggle all tasks for an entire chapter (Mark Complete / Clear Chapter)
+        function toggleChapterAll(subject, chapterIndex) {
+            const currentlyComplete = isChapterComplete(subject, chapterIndex);
+            const newState = !currentlyComplete;
+
+            // Update 6 checkboxes
+            for (let c = 0; c < 6; c++) {
+                const key = getKey(subject, chapterIndex, c);
+                userState[key] = newState;
+
+                const label = document.getElementById(`chk-lbl-${subject}-${chapterIndex}-${c}`);
+                const input = document.getElementById(`chk-inp-${subject}-${chapterIndex}-${c}`);
+                const icon = document.getElementById(`chk-ico-${subject}-${chapterIndex}-${c}`);
+
+                if (input) input.checked = newState;
+                if (label) {
+                    if (newState) {
+                        label.classList.add('bg-emerald-600', 'border-emerald-500');
+                        label.classList.remove('bg-[#101713]', 'border-[#273d2f]');
+                    } else {
+                        label.classList.remove('bg-emerald-600', 'border-emerald-500');
+                        label.classList.add('bg-[#101713]', 'border-[#273d2f]');
+                    }
+                }
+                if (icon) {
+                    if (newState) {
+                        icon.classList.remove('hidden');
+                        icon.classList.add('block');
+                    } else {
+                        icon.classList.add('hidden');
+                        icon.classList.remove('block');
+                    }
+                }
+            }
+
+            // Update Mains and Adv PYQ
+            ['mains', 'adv'].forEach(btnType => {
+                const key = getKey(subject, chapterIndex, null, btnType);
+                userState[key] = newState;
+
+                const btn = document.getElementById(`btn-${subject}-${chapterIndex}-${btnType}`);
+                const widthClass = btnType === 'mains' ? 'w-[54px]' : 'w-[44px]';
+                if (btn) {
+                    if (newState) {
+                        btn.className = `px-1 h-6 text-[10px] font-bold rounded transition border text-center ${widthClass} truncate shadow-sm shrink-0 bg-emerald-600 border-emerald-500 text-white`;
+                    } else {
+                        btn.className = `px-1 h-6 text-[10px] font-medium rounded transition border text-center ${widthClass} truncate shadow-sm shrink-0 bg-[#16221a] hover:bg-[#1e3025] border-[#273d2e] text-emerald-400`;
+                    }
+                }
+            });
+
+            saveState();
+            updateChapterRowState(subject, chapterIndex);
+            updateProgressStats();
+
+            showToast(newState ? `Chapter marked completed!` : `Chapter tasks cleared.`);
+        }
+
+        // Update single chapter row styling based on completion
+        function updateChapterRowState(subject, chapterIndex) {
+            const row = document.getElementById(`row-${subject}-${chapterIndex}`);
+            const badge = document.getElementById(`badge-${subject}-${chapterIndex}`);
+            const quickBtn = document.getElementById(`btn-quick-${subject}-${chapterIndex}`);
+            const complete = isChapterComplete(subject, chapterIndex);
+
+            if (row) {
+                if (complete) {
+                    row.classList.add('chapter-complete');
+                } else {
+                    row.classList.remove('chapter-complete');
+                }
+            }
+            if (badge) {
+                if (complete) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (quickBtn) {
+                if (complete) {
+                    quickBtn.className = "text-emerald-400 hover:text-red-400 p-1 text-xs transition cursor-pointer";
+                    quickBtn.title = "Chapter complete! Click to reset chapter tasks";
+                } else {
+                    quickBtn.className = "text-gray-500 hover:text-emerald-400 p-1 text-xs transition cursor-pointer";
+                    quickBtn.title = "Click to mark all chapter tasks complete";
+                }
+            }
+        }
+
+        // Render Tracker DOM (Only called on load, search/filter, or reset)
+        function renderTracker() {
+            // Save scroll positions to prevent jumping
+            const scrollTops = {
+                physics: document.getElementById('physics-list')?.scrollTop || 0,
+                chemistry: document.getElementById('chemistry-list')?.scrollTop || 0,
+                maths: document.getElementById('maths-list')?.scrollTop || 0
+            };
+
+            const query = currentSearchQuery.trim().toLowerCase();
+
+            for (const subject in syllabusData) {
+                const container = document.getElementById(`${subject}-list`);
+                container.innerHTML = '';
+
+                let visibleCount = 0;
+
+                syllabusData[subject].forEach((chapter, index) => {
+                    // Check search query filter
+                    const matchesSearch = !query || chapter.toLowerCase().includes(query);
+                    if (!matchesSearch) return;
+
+                    // Check status filter
+                    const complete = isChapterComplete(subject, index);
+                    const started = isChapterStarted(subject, index);
+
+                    if (currentStatusFilter === 'completed' && !complete) return;
+                    if (currentStatusFilter === 'in-progress' && (!started || complete)) return;
+                    if (currentStatusFilter === 'not-started' && started) return;
+
+                    visibleCount++;
+
+                    const row = document.createElement('div');
+                    row.id = `row-${subject}-${index}`;
+                    row.className = `flex items-center justify-between bg-[#152019] hover:bg-[#1a2720] border border-[#23352a] px-3 py-2 rounded-xl transition-all text-sm gap-2 group ${complete ? 'chapter-complete' : ''}`;
+
+                    // Left Side: Index + Chapter Name + Done Badge + Quick Toggle
+                    const leftCol = document.createElement('div');
+                    leftCol.className = "flex items-center gap-2 flex-1 min-w-0 pr-1";
+
+                    // Index
+                    const idxSpan = document.createElement('span');
+                    idxSpan.className = "text-[11px] font-mono text-gray-500 w-5 text-right shrink-0";
+                    idxSpan.textContent = `${index + 1}.`;
+                    leftCol.appendChild(idxSpan);
+
+                    // Name
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = "text-gray-200 font-medium truncate text-xs md:text-sm group-hover:text-white transition flex-1 min-w-0";
+                    nameSpan.textContent = chapter;
+                    nameSpan.title = chapter;
+                    leftCol.appendChild(nameSpan);
+
+                    // Done Badge
+                    const doneBadge = document.createElement('span');
+                    doneBadge.id = `badge-${subject}-${index}`;
+                    doneBadge.className = `text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/80 font-bold shrink-0 ${complete ? '' : 'hidden'}`;
+                    doneBadge.textContent = "Done";
+                    leftCol.appendChild(doneBadge);
+
+                    // Quick Toggle Button
+                    const quickBtn = document.createElement('button');
+                    quickBtn.id = `btn-quick-${subject}-${index}`;
+                    quickBtn.className = complete 
+                        ? "text-emerald-400 hover:text-red-400 p-1 text-xs transition cursor-pointer shrink-0" 
+                        : "text-gray-500 hover:text-emerald-400 p-1 text-xs transition cursor-pointer shrink-0";
+                    quickBtn.title = complete ? "Reset chapter tasks" : "Mark all chapter tasks complete";
+                    quickBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
+                    quickBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        toggleChapterAll(subject, index);
+                    };
+                    leftCol.appendChild(quickBtn);
+
+                    row.appendChild(leftCol);
+
+                    // Right Side: Standard Tracker Grid (Pixel-Perfect Alignment with Header)
+                    const controlsWrapper = document.createElement('div');
+                    controlsWrapper.className = "tracker-grid-cols";
+
+                    // 6 Checkboxes
+                    for (let c = 0; c < 6; c++) {
+                        const key = getKey(subject, index, c);
+                        const isChecked = !!userState[key];
+
+                        const label = document.createElement('label');
+                        label.id = `chk-lbl-${subject}-${index}-${c}`;
+                        label.className = `relative flex items-center justify-center w-6 h-6 border rounded cursor-pointer transition shrink-0 ${
+                            isChecked ? 'bg-emerald-600 border-emerald-500 shadow-sm' : 'bg-[#101713] border-[#273d2f] hover:border-emerald-500/80'
+                        }`;
+                        label.title = columnTitles[c];
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = "checkbox";
+                        checkbox.id = `chk-inp-${subject}-${index}-${c}`;
+                        checkbox.className = "opacity-0 absolute inset-0 cursor-pointer";
+                        checkbox.checked = isChecked;
+                        checkbox.onchange = () => toggleCheckbox(subject, index, c);
+
+                        const icon = document.createElement('i');
+                        icon.id = `chk-ico-${subject}-${index}-${c}`;
+                        icon.className = `fa-solid fa-check text-[10px] text-white ${isChecked ? 'block' : 'hidden'}`;
+
+                        label.appendChild(checkbox);
+                        label.appendChild(icon);
+                        controlsWrapper.appendChild(label);
+                    }
+
+                    // JEE Mains PYQ Button (54px)
+                    const mainsKey = getKey(subject, index, null, 'mains');
+                    const isMainsActive = !!userState[mainsKey];
+                    const mainsBtn = document.createElement('button');
+                    mainsBtn.id = `btn-${subject}-${index}-mains`;
+                    mainsBtn.className = `px-1 h-6 text-[10px] rounded transition border text-center w-[54px] truncate shadow-sm shrink-0 cursor-pointer ${
+                        isMainsActive 
+                            ? 'bg-emerald-600 border-emerald-500 text-white font-bold' 
+                            : 'bg-[#16221a] hover:bg-[#1e3025] border-[#273d2e] text-emerald-400 font-medium'
+                    }`;
+                    mainsBtn.textContent = "Mains";
+                    mainsBtn.title = "Toggle JEE Mains PYQs solved status";
+                    mainsBtn.onclick = () => togglePyq(subject, index, 'mains');
+                    controlsWrapper.appendChild(mainsBtn);
+
+                    // JEE Adv PYQ Button (44px)
+                    const advKey = getKey(subject, index, null, 'adv');
+                    const isAdvActive = !!userState[advKey];
+                    const advBtn = document.createElement('button');
+                    advBtn.id = `btn-${subject}-${index}-adv`;
+                    advBtn.className = `px-1 h-6 text-[10px] rounded transition border text-center w-[44px] truncate shadow-sm shrink-0 cursor-pointer ${
+                        isAdvActive 
+                            ? 'bg-emerald-600 border-emerald-500 text-white font-bold' 
+                            : 'bg-[#16221a] hover:bg-[#1e3025] border-[#273d2e] text-emerald-400 font-medium'
+                    }`;
+                    advBtn.textContent = "Adv";
+                    advBtn.title = "Toggle JEE Advanced PYQs solved status";
+                    advBtn.onclick = () => togglePyq(subject, index, 'adv');
+                    controlsWrapper.appendChild(advBtn);
+
+                    row.appendChild(controlsWrapper);
+                    container.appendChild(row);
+                });
+
+                // Empty state if filtered results are 0
+                if (visibleCount === 0) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = "text-center py-10 px-4 text-gray-500 text-xs";
+                    emptyDiv.innerHTML = `
+                        <i class="fa-solid fa-filter-circle-xmark text-2xl text-gray-600 mb-2 block"></i>
+                        No chapters match the selected search or filter.
+                    `;
+                    container.appendChild(emptyDiv);
+                }
+
+                // Restore scroll positions
+                container.scrollTop = scrollTops[subject] || 0;
+            }
+
+            // Update stats
+            updateProgressStats();
+        }
+
+        // Recalculate All Progress Statistics & Refresh UI Counters
+        function updateProgressStats() {
+            let totalItemsCount = 0;
+            let totalCompletedCount = 0;
+            let totalChaptersCount = 0;
+            let totalCompletedChapters = 0;
+
+            // Stage counters
+            let countLec = 0, countMod = 0, countRev = 0, countR1 = 0, countR2 = 0, countR3 = 0, countMains = 0, countAdv = 0;
+
+            const subjectStats = {};
+
+            for (const subject in syllabusData) {
+                let subjectItems = 0;
+                let subjectCompleted = 0;
+                let subjectChapters = syllabusData[subject].length;
+                let subjectDoneChapters = 0;
+
+                syllabusData[subject].forEach((_, index) => {
+                    totalChaptersCount++;
+                    let chapterAllDone = true;
+
+                    // 6 checkboxes
+                    for (let c = 0; c < 6; c++) {
+                        subjectItems++;
+                        totalItemsCount++;
+                        const isDone = !!userState[getKey(subject, index, c)];
+                        if (isDone) {
+                            subjectCompleted++;
+                            totalCompletedCount++;
+                            if (c === 0) countLec++;
+                            else if (c === 1) countMod++;
+                            else if (c === 2) countRev++;
+                            else if (c === 3) countR1++;
+                            else if (c === 4) countR2++;
+                            else if (c === 5) countR3++;
+                        } else {
+                            chapterAllDone = false;
+                        }
+                    }
+
+                    // Mains PYQ
+                    subjectItems++;
+                    totalItemsCount++;
+                    if (userState[getKey(subject, index, null, 'mains')]) {
+                        subjectCompleted++;
+                        totalCompletedCount++;
+                        countMains++;
+                    } else {
+                        chapterAllDone = false;
+                    }
+
+                    // Adv PYQ
+                    subjectItems++;
+                    totalItemsCount++;
+                    if (userState[getKey(subject, index, null, 'adv')]) {
+                        subjectCompleted++;
+                        totalCompletedCount++;
+                        countAdv++;
+                    } else {
+                        chapterAllDone = false;
+                    }
+
+                    if (chapterAllDone) {
+                        subjectDoneChapters++;
+                        totalCompletedChapters++;
+                    }
+                });
+
+                const subPct = subjectItems > 0 ? Math.round((subjectCompleted / subjectItems) * 100) : 0;
+                subjectStats[subject] = {
+                    pct: subPct,
+                    completed: subjectCompleted,
+                    total: subjectItems,
+                    chaptersDone: subjectDoneChapters,
+                    chaptersTotal: subjectChapters
+                };
+
+                // Update Column Header Elements
+                const pctEl = document.getElementById(`${subject}-pct`);
+                const cntEl = document.getElementById(`${subject}-count`);
+                const chCntEl = document.getElementById(`${subject}-ch-count`);
+
+                if (pctEl) pctEl.textContent = `${subPct}%`;
+                if (cntEl) cntEl.textContent = `${subjectCompleted} / ${subjectItems} tasks`;
+                if (chCntEl) chCntEl.textContent = `${subjectDoneChapters} / ${subjectChapters} ch`;
+            }
+
+            // Overall Percentage Logic with edge cases guarded
+            let overallPct = 0;
+            let displayPct = "0%";
+            if (totalItemsCount > 0) {
+                overallPct = (totalCompletedCount / totalItemsCount) * 100;
+                if (totalCompletedCount === totalItemsCount) {
+                    displayPct = "100%";
+                } else if (totalCompletedCount > 0 && overallPct < 1) {
+                    displayPct = overallPct.toFixed(1) + "%";
+                } else if (totalCompletedCount < totalItemsCount && overallPct > 99) {
+                    displayPct = "99.9%";
+                } else {
+                    displayPct = Math.round(overallPct) + "%";
+                }
+            }
+
+            // Update Header Elements
+            document.getElementById('overall-percentage').textContent = displayPct;
+            document.getElementById('overall-counter').textContent = `${totalCompletedCount} / ${totalItemsCount} tasks completed`;
+            document.getElementById('overall-chapters-counter').textContent = `${totalCompletedChapters} / ${totalChaptersCount} ch`;
+            document.getElementById('overall-progress-bar').style.width = `${Math.min(100, Math.max(0, overallPct))}%`;
+
+            // Update Status Badge
+            const statusBadge = document.getElementById('status-badge');
+            if (totalCompletedCount === totalItemsCount && totalItemsCount > 0) {
+                statusBadge.innerHTML = `<i class="fa-solid fa-crown text-yellow-300"></i> Completed 🎉`;
+                statusBadge.className = "px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white border border-emerald-400 shadow-md";
+            } else if (totalCompletedCount > 0) {
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> In Progress`;
+                statusBadge.className = "px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#1a3324] text-emerald-300 border border-emerald-700/60 shadow-inner";
+            } else {
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-500"></span> Not started`;
+                statusBadge.className = "px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#18231c] text-gray-400 border border-gray-700/50 shadow-inner";
+            }
+
+            // Update Modal Stats
+            document.getElementById('modal-overall-pct').textContent = displayPct;
+            document.getElementById('modal-overall-tasks').textContent = `${totalCompletedCount} / ${totalItemsCount} Tasks`;
+            document.getElementById('modal-overall-chapters').textContent = `${totalCompletedChapters} / ${totalChaptersCount}`;
+            const chPct = totalChaptersCount > 0 ? Math.round((totalCompletedChapters / totalChaptersCount) * 100) : 0;
+            document.getElementById('modal-chapters-pct').textContent = `${chPct}% of syllabus fully done`;
+
+            // Update Modal Milestones
+            document.getElementById('stat-lec').textContent = `${countLec}/${totalChaptersCount}`;
+            document.getElementById('stat-mod').textContent = `${countMod}/${totalChaptersCount}`;
+            document.getElementById('stat-rev').textContent = `${countRev}/${totalChaptersCount}`;
+            document.getElementById('stat-mains').textContent = `${countMains}/${totalChaptersCount}`;
+            document.getElementById('stat-adv').textContent = `${countAdv}/${totalChaptersCount}`;
+            document.getElementById('stat-r1').textContent = `${countR1}/${totalChaptersCount}`;
+            document.getElementById('stat-r2').textContent = `${countR2}/${totalChaptersCount}`;
+            document.getElementById('stat-r3').textContent = `${countR3}/${totalChaptersCount}`;
+
+            // Update Modal Subject Bars
+            ['physics', 'chemistry', 'maths'].forEach(sub => {
+                const s = subjectStats[sub];
+                if (s) {
+                    const textEl = document.getElementById(`modal-${sub}-text`);
+                    const barEl = document.getElementById(`modal-${sub}-bar`);
+                    if (textEl) textEl.textContent = `${s.pct}% (${s.completed} / ${s.total} tasks, ${s.chaptersDone} ch)`;
+                    if (barEl) barEl.style.width = `${s.pct}%`;
+                }
+            });
+        }
+
+        // Tab Switching Logic (All Subjects | Physics | Chemistry | Maths)
+        function switchTab(tab) {
+            currentActiveTab = tab;
+            const tabs = ['all', 'physics', 'chemistry', 'maths'];
+
+            // Update Tab Button Styles
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tab) {
+                    btn.className = "px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer bg-emerald-600 text-white shadow";
+                } else {
+                    btn.className = "px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer text-gray-400 hover:text-white";
+                }
+            });
+
+            // Update Column Visibility
+            const container = document.getElementById('subjects-container');
+            if (tab === 'all') {
+                container.className = "grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-5 flex-1";
+                document.getElementById('column-physics').classList.remove('hidden');
+                document.getElementById('column-chemistry').classList.remove('hidden');
+                document.getElementById('column-maths').classList.remove('hidden');
+            } else {
+                container.className = "grid grid-cols-1 gap-4 md:gap-5 flex-1 max-w-4xl mx-auto w-full";
+                document.getElementById('column-physics').classList.toggle('hidden', tab !== 'physics');
+                document.getElementById('column-chemistry').classList.toggle('hidden', tab !== 'chemistry');
+                document.getElementById('column-maths').classList.toggle('hidden', tab !== 'maths');
+            }
+        }
+
+        // Search Input Handler
+        function handleSearch(val) {
+            currentSearchQuery = val;
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (val.trim()) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            renderTracker();
+        }
+
+        function clearSearch() {
+            const input = document.getElementById('chapter-search');
+            if (input) {
+                input.value = '';
+                if (typeof input.focus === 'function') input.focus();
+            }
+            handleSearch('');
+        }
+
+        // Filter Dropdown Handler
+        function handleFilterChange(val) {
+            currentStatusFilter = val;
+            renderTracker();
+        }
+
+        // Reset Modal Handlers
+        function confirmReset() {
+            const modal = document.getElementById('reset-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function executeReset() {
+            userState = {};
+            try {
+                localStorage.removeItem('jee_tracker_state');
+            } catch (e) {
+                console.error(e);
+            }
+            closeModal('reset-modal');
+            renderTracker();
+            showToast("All progress has been reset.", "info");
+        }
+
+        // Stats Modal Handlers
+        function openStatsModal() {
+            const modal = document.getElementById('stats-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function handleBackdropClick(event, modalId) {
+            if (event.target === event.currentTarget) {
+                closeModal(modalId);
+            }
+        }
+
+        // Close modal on Escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal('reset-modal');
+                closeModal('stats-modal');
+            }
+        });
+
+        // Export Data as JSON file
+        function exportData() {
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userState, null, 2));
+                const downloadAnchor = document.createElement('a');
+                const date = new Date().toISOString().slice(0, 10);
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `jee_tracker_backup_${date}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showToast("Tracker backup downloaded!");
+            } catch (e) {
+                showToast("Failed to export backup", "error");
+            }
+        }
+
+        // Import Data from JSON file
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        userState = parsed;
+                        saveState();
+                        renderTracker();
+                        showToast("Backup restored successfully!");
+                    } else {
+                        showToast("Invalid JSON file format", "error");
+                    }
+                } catch (err) {
+                    showToast("Failed to parse JSON backup", "error");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Toast Notification System
+        let toastTimeout = null;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastInner = document.getElementById('toast-inner');
+
+            if (!toast || !toastMsg) return;
+
+            toastMsg.textContent = message;
+
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-red-400";
+                toastInner.className = "flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#251515] border border-red-500/50 text-white shadow-2xl text-xs font-medium";
+            } else if (type === 'info') {
+                toastIcon.className = "fa-solid fa-circle-info text-blue-400";
+                toastInner.className = "flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#141b25] border border-blue-500/50 text-white shadow-2xl text-xs font-medium";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+                toastInner.className = "flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#142319] border border-emerald-500/50 text-white shadow-2xl text-xs font-medium";
+            }
+
+            toast.classList.remove('translate-y-16', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-16', 'opacity-0');
+            }, 3000);
+        }
+
+        // Initialize application on load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTracker();
+        });
+    </script>
+</body>
+</html>
